@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Fleet Fuel Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0d1117;
+  --bg2:#161b22;
+  --bg3:#21262d;
+  --card:#1c2128;
+  --border:#30363d;
+  --accent:#f0883e;
+  --accent2:#58a6ff;
+  --green:#3fb950;
+  --red:#f85149;
+  --yellow:#d29922;
+  --text:#e6edf3;
+  --muted:#8b949e;
+  --font-head:'Syne',sans-serif;
+  --font-body:'DM Sans',sans-serif;
+  --radius:14px;
+  --nav-h:68px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+
+/* LAYOUT */
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;position:relative;}
+.screen{display:none;flex:1;overflow-y:auto;padding:16px 16px calc(var(--nav-h)+16px);animation:fadeIn .2s ease;}
+.screen.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* TOP BAR */
+.topbar{padding:20px 16px 4px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:10;}
+.topbar h1{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:-0.5px;}
+.topbar .subtitle{font-size:12px;color:var(--muted);margin-top:1px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+
+/* BOTTOM NAV */
+#bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:var(--nav-h);background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:stretch;z-index:100;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--font-body);font-size:10px;font-weight:500;letter-spacing:0.3px;transition:color .15s;padding-bottom:4px;}
+.nav-btn svg{width:22px;height:22px;}
+.nav-btn.active{color:var(--accent);}
+.nav-btn.active svg{filter:drop-shadow(0 0 6px rgba(240,136,62,.5));}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.card-title{font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.stat-val{font-family:var(--font-head);font-size:26px;font-weight:800;line-height:1;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.stat-card.accent{border-color:rgba(240,136,62,.3);background:rgba(240,136,62,.06);}
+.stat-card.blue{border-color:rgba(88,166,255,.3);background:rgba(88,166,255,.06);}
+.stat-card.green{border-color:rgba(63,185,80,.3);background:rgba(63,185,80,.06);}
+.stat-card.red{border-color:rgba(248,81,73,.3);background:rgba(248,81,73,.06);}
+
+/* LIST ITEMS */
+.list-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.list-item:last-child{border-bottom:none;}
+.item-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.item-main{flex:1;min-width:0;}
+.item-name{font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.item-right{text-align:right;flex-shrink:0;}
+.item-val{font-family:var(--font-head);font-weight:700;font-size:15px;}
+.item-sub2{font-size:11px;color:var(--muted);}
+
+/* BADGE */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;}
+.badge-green{background:rgba(63,185,80,.15);color:var(--green);}
+.badge-red{background:rgba(248,81,73,.15);color:var(--red);}
+.badge-yellow{background:rgba(210,153,34,.15);color:var(--yellow);}
+.badge-blue{background:rgba(88,166,255,.15);color:var(--accent2);}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 20px;border-radius:10px;border:none;cursor:pointer;font-family:var(--font-body);font-size:14px;font-weight:500;transition:all .15s;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-primary:hover{background:#e07830;}
+.btn-ghost{background:var(--bg3);color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg2);}
+.btn-full{width:100%;}
+.btn-sm{padding:8px 14px;font-size:13px;border-radius:8px;}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:8px;}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(var(--nav-h)+16px);right:max(16px,calc(50% - 224px));width:52px;height:52px;border-radius:50%;background:var(--accent);border:none;color:#000;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(240,136,62,.4);display:flex;align-items:center;justify-content:center;z-index:50;transition:transform .15s;}
+.fab:active{transform:scale(0.92);}
+
+/* FORMS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center;max-width:480px;left:50%;transform:translateX(-50%);}
+.modal{background:var(--bg2);border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;padding:20px;width:100%;max-height:85vh;overflow-y:auto;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+.modal-title{font-family:var(--font-head);font-size:20px;font-weight:800;margin-bottom:20px;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;display:block;}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-family:var(--font-body);font-size:15px;outline:none;transition:border-color .15s;}
+.form-input:focus{border-color:var(--accent);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b949e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+
+/* SEARCH */
+.search-box{display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0 12px;margin-bottom:14px;}
+.search-box svg{color:var(--muted);flex-shrink:0;}
+.search-box input{flex:1;background:none;border:none;outline:none;padding:11px 10px;color:var(--text);font-family:var(--font-body);font-size:14px;}
+
+/* SECTION TITLE */
+.section-title{font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:18px 0 10px;}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.5;}
+.empty p{color:var(--muted);font-size:14px;}
+
+/* CHART CONTAINER */
+.chart-wrap{position:relative;height:200px;margin-top:8px;}
+
+/* VEHICLE TYPE ICONS */
+.type-bus{background:rgba(88,166,255,.15);}
+.type-van{background:rgba(63,185,80,.15);}
+.type-car{background:rgba(240,136,62,.15);}
+.type-truck{background:rgba(210,153,34,.15);}
+
+/* SETUP SCREEN */
+.setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:32px 20px;text-align:center;}
+.setup-logo{font-family:var(--font-head);font-size:48px;font-weight:800;color:var(--accent);margin-bottom:8px;}
+.setup-tagline{color:var(--muted);font-size:14px;margin-bottom:40px;}
+.setup-field{width:100%;max-width:340px;margin-bottom:14px;}
+.api-note{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:10px;padding:14px;text-align:left;margin-bottom:20px;max-width:340px;width:100%;}
+.api-note p{font-size:13px;color:var(--muted);line-height:1.6;}
+.api-note code{background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:12px;color:var(--accent2);}
+
+/* Pill tabs */
+.tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
+.tab{padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--muted);font-size:13px;cursor:pointer;white-space:nowrap;font-family:var(--font-body);transition:all .15s;}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:500;}
+
+/* CONFIG MODAL */
+.config-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+.config-row:last-child{border-bottom:none;}
+.config-label{font-size:14px;}
+.config-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 20px;font-size:13px;z-index:999;transition:transform .3s;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:rgba(63,185,80,.4);color:var(--green);}
+.toast.error{border-color:rgba(248,81,73,.4);color:var(--red);}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- SETUP SCREEN (shown first time) -->
+<div id="setup-view" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;padding:32px 20px;text-align:center;">
+  <div class="setup-logo">⛽</div>
+  <div style="font-family:var(--font-head);font-size:28px;font-weight:800;margin-bottom:6px;">Fleet Fuel Tracker</div>
+  <div class="setup-tagline">School vehicle fuel management</div>
+
+  <div class="setup-field">
+    <label class="form-label">School / Organization Name</label>
+    <input class="form-input" id="setup-school" placeholder="e.g. Delhi Public School" value="My School"/>
+  </div>
+
+  <div class="setup-field">
+    <label class="form-label">Currency Symbol</label>
+    <input class="form-input" id="setup-currency" placeholder="₹" value="₹"/>
+  </div>
+
+  <div class="api-note">
+    <p><strong style="color:var(--accent2)">Optional:</strong> Connect Google Sheets for persistent storage across devices. Paste your <code>Apps Script Web App URL</code> below, or leave blank to use local storage.</p>
+  </div>
+
+  <div class="setup-field">
+    <label class="form-label">Google Apps Script URL (optional)</label>
+    <input class="form-input" id="setup-api" placeholder="https://script.google.com/macros/s/..."/>
+  </div>
+
+  <button class="btn btn-primary btn-full" style="max-width:340px;margin-top:8px;" onclick="finishSetup()">Get Started →</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app" style="display:none;height:100%;">
+
+  <!-- DASHBOARD -->
+  <div id="screen-dashboard" class="screen active">
+    <div class="topbar">
+      <div>
+        <h1 id="school-name-header">Fleet Tracker</h1>
+        <div class="subtitle" id="today-date"></div>
+      </div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="openSettings()">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+      </button>
+    </div>
+
+    <!-- Alert if API not set -->
+    <div id="local-alert" style="background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--yellow);display:none;">
+      ⚡ Using local storage. Data stays on this device only. <span style="text-decoration:underline;cursor:pointer;" onclick="openSettings()">Add Google Sheets URL</span> to sync across devices.
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card accent">
+        <div class="stat-label">Total Vehicles</div>
+        <div class="stat-val" id="dash-total-vehicles">0</div>
+        <div class="stat-sub" id="dash-active-vehicles">0 active</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">This Month Fuel</div>
+        <div class="stat-val" id="dash-month-litres">0</div>
+        <div class="stat-sub">litres</div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card green">
+        <div class="stat-label">This Month Cost</div>
+        <div class="stat-val" id="dash-month-cost">0</div>
+        <div class="stat-sub" id="dash-cost-sub">total spend</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Total Logs</div>
+        <div class="stat-val" id="dash-total-logs">0</div>
+        <div class="stat-sub">fuel entries</div>
+      </div>
+    </div>
+
+    <div class="section-title">Recent Fuel Logs</div>
+    <div class="card">
+      <div id="recent-logs-list"><div class="empty"><div class="empty-icon">📋</div><p>No fuel logs yet.<br>Tap + to add one.</p></div></div>
+    </div>
+
+    <div class="section-title">Top Consuming Vehicles</div>
+    <div class="card">
+      <div id="top-vehicles-list"><div class="empty"><div class="empty-icon">🚌</div><p>No data yet.</p></div></div>
+    </div>
+  </div>
+
+  <!-- VEHICLES -->
+  <div id="screen-vehicles" class="screen">
+    <div class="topbar">
+      <div><h1>Vehicles</h1><div class="subtitle" id="vehicle-count-sub">Loading...</div></div>
+    </div>
+    <div class="search-box">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input placeholder="Search vehicles..." oninput="filterVehicles(this.value)" id="vehicle-search"/>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="filterVehicleType('All',this)">All</button>
+      <button class="tab" onclick="filterVehicleType('Bus',this)">🚌 Bus</button>
+      <button class="tab" onclick="filterVehicleType('Van',this)">🚐 Van</button>
+      <button class="tab" onclick="filterVehicleType('Car',this)">🚗 Car</button>
+      <button class="tab" onclick="filterVehicleType('Truck',this)">🚚 Truck</button>
+    </div>
+    <div class="card" id="vehicles-list"><div class="empty"><div class="empty-icon">🚌</div><p>No vehicles added yet.</p></div></div>
+  </div>
+
+  <!-- FUEL LOG -->
+  <div id="screen-fuel" class="screen">
+    <div class="topbar">
+      <div><h1>Fuel Logs</h1><div class="subtitle" id="fuel-count-sub">Loading...</div></div>
+    </div>
+    <div class="search-box">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input placeholder="Search by vehicle or driver..." oninput="filterLogs(this.value)" id="fuel-search"/>
+    </div>
+    <div class="card" id="fuel-logs-list"><div class="empty"><div class="empty-icon">⛽</div><p>No fuel logs yet.</p></div></div>
+  </div>
+
+  <!-- REPORTS -->
+  <div id="screen-reports" class="screen">
+    <div class="topbar"><div><h1>Reports</h1><div class="subtitle">Analytics & insights</div></div></div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchReportTab('monthly',this)">Monthly</button>
+      <button class="tab" onclick="switchReportTab('vehicles',this)">By Vehicle</button>
+      <button class="tab" onclick="switchReportTab('drivers',this)">By Driver</button>
+    </div>
+    <div id="report-monthly">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Monthly Cost</span></div>
+        <div class="chart-wrap"><canvas id="chart-monthly-cost"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Monthly Litres</span></div>
+        <div class="chart-wrap"><canvas id="chart-monthly-litres"></canvas></div>
+      </div>
+    </div>
+    <div id="report-vehicles" style="display:none;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Cost by Vehicle</span></div>
+        <div class="chart-wrap"><canvas id="chart-vehicle-cost"></canvas></div>
+      </div>
+      <div id="vehicle-report-list"></div>
+    </div>
+    <div id="report-drivers" style="display:none;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Fill-ups by Driver</span></div>
+        <div class="chart-wrap"><canvas id="chart-driver"></canvas></div>
+      </div>
+      <div id="driver-report-list"></div>
+    </div>
+  </div>
+
+  <!-- DRIVERS -->
+  <div id="screen-drivers" class="screen">
+    <div class="topbar">
+      <div><h1>Drivers</h1><div class="subtitle" id="driver-count-sub">Loading...</div></div>
+    </div>
+    <div class="search-box">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input placeholder="Search drivers..." oninput="filterDrivers(this.value)" id="driver-search"/>
+    </div>
+    <div class="card" id="drivers-list"><div class="empty"><div class="empty-icon">👤</div><p>No drivers added yet.</p></div></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" onclick="showScreen('dashboard',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-btn" onclick="showScreen('vehicles',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M1 17l2-7h18l2 7H1zM5 17v2m14-2v2"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/></svg>
+      Vehicles
+    </button>
+    <button class="nav-btn" onclick="showScreen('fuel',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 22V8l5-5h8l1 3v16H3z"/><path d="M17 6h2a2 2 0 012 2v4a2 2 0 01-2 2h-2"/><path d="M8 11h5"/></svg>
+      Fuel Logs
+    </button>
+    <button class="nav-btn" onclick="showScreen('reports',this);renderReports();">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      Reports
+    </button>
+    <button class="nav-btn" onclick="showScreen('drivers',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Drivers
+    </button>
+  </nav>
+
+  <!-- FAB -->
+  <button class="fab" id="fab-btn" onclick="openAddModal()">+</button>
+
+</div><!-- /main-app -->
+</div><!-- /app -->
+
+<!-- MODALS -->
+
+<!-- ADD FUEL LOG MODAL -->
+<div id="modal-fuel" class="modal-overlay" style="display:none;" onclick="closeModal('modal-fuel')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Log Fuel Fill-up</div>
+  <div class="form-group">
+    <label class="form-label">Vehicle *</label>
+    <select class="form-input" id="fl-vehicle"></select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Driver</label>
+    <select class="form-input" id="fl-driver"><option value="">-- Select Driver --</option></select>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Date *</label>
+      <input type="date" class="form-input" id="fl-date"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Litres *</label>
+      <input type="number" class="form-input" id="fl-litres" placeholder="0.0" step="0.1" min="0"/>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label" id="fl-cost-label">Price/Litre *</label>
+      <input type="number" class="form-input" id="fl-cost" placeholder="0.00" step="0.01" min="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Odometer (km)</label>
+      <input type="number" class="form-input" id="fl-odo" placeholder="0"/>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Notes</label>
+    <input type="text" class="form-input" id="fl-notes" placeholder="Optional notes..."/>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:4px;">
+    <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-fuel')">Cancel</button>
+    <button class="btn btn-primary" style="flex:2" onclick="saveFuelLog()">Save Log</button>
+  </div>
+</div>
+</div>
+
+<!-- ADD VEHICLE MODAL -->
+<div id="modal-vehicle" class="modal-overlay" style="display:none;" onclick="closeModal('modal-vehicle')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Add Vehicle</div>
+  <div class="form-group">
+    <label class="form-label">Vehicle Name *</label>
+    <input type="text" class="form-input" id="v-name" placeholder="e.g. Bus 01"/>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Reg. Number *</label>
+      <input type="text" class="form-input" id="v-reg" placeholder="HR 26 AB 1234"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="v-type">
+        <option>Bus</option><option>Van</option><option>Car</option><option>Truck</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Capacity (seats)</label>
+      <input type="number" class="form-input" id="v-capacity" placeholder="40"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <select class="form-input" id="v-status">
+        <option>Active</option><option>Maintenance</option><option>Inactive</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Fuel Type</label>
+    <select class="form-input" id="v-fuel">
+      <option>Diesel</option><option>Petrol</option><option>CNG</option><option>Electric</option>
+    </select>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:4px;">
+    <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-vehicle')">Cancel</button>
+    <button class="btn btn-primary" style="flex:2" onclick="saveVehicle()">Add Vehicle</button>
+  </div>
+</div>
+</div>
+
+<!-- ADD DRIVER MODAL -->
+<div id="modal-driver" class="modal-overlay" style="display:none;" onclick="closeModal('modal-driver')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Add Driver</div>
+  <div class="form-group">
+    <label class="form-label">Full Name *</label>
+    <input type="text" class="form-input" id="d-name" placeholder="Driver name"/>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Phone</label>
+      <input type="tel" class="form-input" id="d-phone" placeholder="9876543210"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Licence No.</label>
+      <input type="text" class="form-input" id="d-licence" placeholder="DL1234567"/>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Status</label>
+    <select class="form-input" id="d-status">
+      <option>Active</option><option>On Leave</option><option>Inactive</option>
+    </select>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:4px;">
+    <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-driver')">Cancel</button>
+    <button class="btn btn-primary" style="flex:2" onclick="saveDriver()">Add Driver</button>
+  </div>
+</div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="modal-settings" class="modal-overlay" style="display:none;" onclick="closeModal('modal-settings')">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">Settings</div>
+  <div class="form-group">
+    <label class="form-label">School Name</label>
+    <input type="text" class="form-input" id="s-school"/>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Currency Symbol</label>
+    <input type="text" class="form-input" id="s-currency" maxlength="3"/>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Google Apps Script URL</label>
+    <input type="url" class="form-input" id="s-api" placeholder="https://script.google.com/macros/s/..."/>
+  </div>
+  <div class="api-note" style="margin-bottom:14px;">
+    <p>To set up Google Sheets sync, create a Google Sheet with tabs: <code>Vehicles</code>, <code>FuelLogs</code>, <code>Drivers</code>. Then add Apps Script, deploy as Web App, and paste the URL above.</p>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-settings')">Cancel</button>
+    <button class="btn btn-primary" style="flex:2" onclick="saveSettings()">Save</button>
+  </div>
+  <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+    <button class="btn btn-ghost btn-full" onclick="exportCSV()" style="margin-bottom:8px;">📥 Export All Data (CSV)</button>
+    <button class="btn btn-full" style="background:rgba(248,81,73,.1);color:var(--red);border:1px solid rgba(248,81,73,.2);" onclick="clearAllData()">🗑 Clear All Data</button>
+  </div>
+</div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script>
+// ===================== DATA LAYER =====================
+let DB = {
+  vehicles: [],
+  fuelLogs: [],
+  drivers: [],
+  settings: { school: 'My School', currency: '₹', apiUrl: '' }
+};
+
+function saveDB() {
+  localStorage.setItem('fleet_db', JSON.stringify(DB));
+}
+
+function loadDB() {
+  const raw = localStorage.getItem('fleet_db');
+  if (raw) {
+    try { DB = JSON.parse(raw); } catch(e) {}
+  }
+  // Ensure settings exist
+  if (!DB.settings) DB.settings = { school: 'My School', currency: '₹', apiUrl: '' };
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// ===================== SETUP =====================
+function finishSetup() {
+  const school = document.getElementById('setup-school').value.trim() || 'My School';
+  const currency = document.getElementById('setup-currency').value.trim() || '₹';
+  const api = document.getElementById('setup-api').value.trim();
+  DB.settings = { school, currency, apiUrl: api };
+  saveDB();
+  localStorage.setItem('fleet_setup_done', '1');
+  showMainApp();
+}
+
+function showMainApp() {
+  document.getElementById('setup-view').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  initApp();
+}
+
+function initApp() {
+  const s = DB.settings;
+  document.getElementById('school-name-header').textContent = s.school;
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('fl-cost-label').textContent = `Price/Litre (${s.currency}) *`;
+  if (!s.apiUrl) document.getElementById('local-alert').style.display = 'block';
+  renderDashboard();
+  renderVehicleList();
+  renderFuelList();
+  renderDriverList();
+}
+
+// ===================== NAVIGATION =====================
+let currentScreen = 'dashboard';
+let currentFabTarget = 'fuel';
+
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  currentScreen = name;
+  // Update FAB visibility and target
+  const fab = document.getElementById('fab-btn');
+  if (name === 'reports') { fab.style.display = 'none'; }
+  else {
+    fab.style.display = 'flex';
+    currentFabTarget = name === 'dashboard' ? 'fuel' : name === 'vehicles' ? 'vehicle' : name === 'drivers' ? 'driver' : 'fuel';
+  }
+}
+
+function openAddModal() {
+  if (currentFabTarget === 'vehicle') openVehicleModal();
+  else if (currentFabTarget === 'driver') openDriverModal();
+  else openFuelModal();
+}
+
+// ===================== MODALS =====================
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function openFuelModal() {
+  // Populate dropdowns
+  const vSel = document.getElementById('fl-vehicle');
+  vSel.innerHTML = '<option value="">-- Select Vehicle --</option>';
+  DB.vehicles.forEach(v => vSel.innerHTML += `<option value="${v.id}">${v.name} (${v.reg})</option>`);
+  const dSel = document.getElementById('fl-driver');
+  dSel.innerHTML = '<option value="">-- Select Driver --</option>';
+  DB.drivers.forEach(d => dSel.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+  document.getElementById('fl-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fl-litres').value = '';
+  document.getElementById('fl-cost').value = '';
+  document.getElementById('fl-odo').value = '';
+  document.getElementById('fl-notes').value = '';
+  openModal('modal-fuel');
+}
+
+function openVehicleModal() {
+  ['v-name','v-reg','v-capacity'].forEach(id => document.getElementById(id).value = '');
+  openModal('modal-vehicle');
+}
+
+function openDriverModal() {
+  ['d-name','d-phone','d-licence'].forEach(id => document.getElementById(id).value = '');
+  openModal('modal-driver');
+}
+
+function openSettings() {
+  const s = DB.settings;
+  document.getElementById('s-school').value = s.school;
+  document.getElementById('s-currency').value = s.currency;
+  document.getElementById('s-api').value = s.apiUrl || '';
+  openModal('modal-settings');
+}
+
+// ===================== SAVE HANDLERS =====================
+function saveFuelLog() {
+  const vid = document.getElementById('fl-vehicle').value;
+  const litres = parseFloat(document.getElementById('fl-litres').value);
+  const cost = parseFloat(document.getElementById('fl-cost').value);
+  if (!vid) { toast('Please select a vehicle', 'error'); return; }
+  if (!litres || litres <= 0) { toast('Enter valid litres', 'error'); return; }
+  if (!cost || cost <= 0) { toast('Enter valid price', 'error'); return; }
+
+  const log = {
+    id: uid(),
+    vehicleId: vid,
+    driverId: document.getElementById('fl-driver').value,
+    date: document.getElementById('fl-date').value,
+    litres,
+    pricePerLitre: cost,
+    totalCost: parseFloat((litres * cost).toFixed(2)),
+    odometer: parseInt(document.getElementById('fl-odo').value) || 0,
+    notes: document.getElementById('fl-notes').value
+  };
+  DB.fuelLogs.unshift(log);
+  saveDB();
+  syncToSheets('FuelLogs', logToRow(log));
+  closeModal('modal-fuel');
+  toast('Fuel log saved!', 'success');
+  renderDashboard();
+  renderFuelList();
+}
+
+function logToRow(l) {
+  const v = DB.vehicles.find(x => x.id === l.vehicleId);
+  const d = DB.drivers.find(x => x.id === l.driverId);
+  return [l.id, v?.name||'', v?.reg||'', d?.name||'', l.date, l.litres, l.pricePerLitre, l.totalCost, l.odometer, l.notes];
+}
+
+function saveVehicle() {
+  const name = document.getElementById('v-name').value.trim();
+  const reg = document.getElementById('v-reg').value.trim();
+  if (!name) { toast('Vehicle name required', 'error'); return; }
+  if (!reg) { toast('Registration number required', 'error'); return; }
+
+  const v = {
+    id: uid(),
+    name,
+    reg,
+    type: document.getElementById('v-type').value,
+    capacity: parseInt(document.getElementById('v-capacity').value) || 0,
+    status: document.getElementById('v-status').value,
+    fuelType: document.getElementById('v-fuel').value,
+    addedOn: new Date().toISOString().split('T')[0]
+  };
+  DB.vehicles.push(v);
+  saveDB();
+  syncToSheets('Vehicles', [v.id, v.name, v.reg, v.type, v.capacity, v.status, v.fuelType]);
+  closeModal('modal-vehicle');
+  toast('Vehicle added!', 'success');
+  renderVehicleList();
+  renderDashboard();
+}
+
+function saveDriver() {
+  const name = document.getElementById('d-name').value.trim();
+  if (!name) { toast('Driver name required', 'error'); return; }
+  const d = {
+    id: uid(),
+    name,
+    phone: document.getElementById('d-phone').value.trim(),
+    licence: document.getElementById('d-licence').value.trim(),
+    status: document.getElementById('d-status').value,
+    addedOn: new Date().toISOString().split('T')[0]
+  };
+  DB.drivers.push(d);
+  saveDB();
+  syncToSheets('Drivers', [d.id, d.name, d.phone, d.licence, d.status]);
+  closeModal('modal-driver');
+  toast('Driver added!', 'success');
+  renderDriverList();
+}
+
+function saveSettings() {
+  DB.settings.school = document.getElementById('s-school').value.trim() || 'My School';
+  DB.settings.currency = document.getElementById('s-currency').value.trim() || '₹';
+  DB.settings.apiUrl = document.getElementById('s-api').value.trim();
+  saveDB();
+  document.getElementById('school-name-header').textContent = DB.settings.school;
+  document.getElementById('local-alert').style.display = DB.settings.apiUrl ? 'none' : 'block';
+  closeModal('modal-settings');
+  toast('Settings saved!', 'success');
+}
+
+// ===================== DELETE =====================
+function deleteVehicle(id) {
+  if (!confirm('Delete this vehicle? Associated fuel logs will remain.')) return;
+  DB.vehicles = DB.vehicles.filter(v => v.id !== id);
+  saveDB(); renderVehicleList(); renderDashboard();
+  toast('Vehicle removed');
+}
+function deleteFuelLog(id) {
+  if (!confirm('Delete this fuel log?')) return;
+  DB.fuelLogs = DB.fuelLogs.filter(l => l.id !== id);
+  saveDB(); renderFuelList(); renderDashboard();
+  toast('Log removed');
+}
+function deleteDriver(id) {
+  if (!confirm('Delete this driver?')) return;
+  DB.drivers = DB.drivers.filter(d => d.id !== id);
+  saveDB(); renderDriverList();
+  toast('Driver removed');
+}
+
+// ===================== RENDER: DASHBOARD =====================
+function renderDashboard() {
+  const cur = DB.settings.currency;
+  document.getElementById('dash-total-vehicles').textContent = DB.vehicles.length;
+  document.getElementById('dash-active-vehicles').textContent = DB.vehicles.filter(v=>v.status==='Active').length + ' active';
+  document.getElementById('dash-total-logs').textContent = DB.fuelLogs.length;
+
+  const now = new Date();
+  const monthLogs = DB.fuelLogs.filter(l => {
+    const d = new Date(l.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const monthLitres = monthLogs.reduce((s,l) => s + l.litres, 0);
+  const monthCost = monthLogs.reduce((s,l) => s + l.totalCost, 0);
+  document.getElementById('dash-month-litres').textContent = monthLitres.toFixed(0);
+  document.getElementById('dash-month-cost').textContent = cur + monthCost.toFixed(0);
+  document.getElementById('dash-cost-sub').textContent = 'total spend';
+
+  // Recent logs
+  const recentEl = document.getElementById('recent-logs-list');
+  if (DB.fuelLogs.length === 0) {
+    recentEl.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>No fuel logs yet.<br>Tap + to add one.</p></div>';
+  } else {
+    recentEl.innerHTML = DB.fuelLogs.slice(0,5).map(l => {
+      const v = DB.vehicles.find(x => x.id === l.vehicleId);
+      const d = DB.drivers.find(x => x.id === l.driverId);
+      return `<div class="list-item">
+        <div class="item-icon" style="background:rgba(240,136,62,.12);">⛽</div>
+        <div class="item-main">
+          <div class="item-name">${v?.name||'Unknown Vehicle'}</div>
+          <div class="item-sub">${d?.name||'No driver'} · ${formatDate(l.date)}</div>
+        </div>
+        <div class="item-right">
+          <div class="item-val">${cur}${l.totalCost.toFixed(0)}</div>
+          <div class="item-sub2">${l.litres}L</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Top consuming vehicles
+  const topEl = document.getElementById('top-vehicles-list');
+  const byVehicle = {};
+  DB.fuelLogs.forEach(l => {
+    if (!byVehicle[l.vehicleId]) byVehicle[l.vehicleId] = {litres:0, cost:0};
+    byVehicle[l.vehicleId].litres += l.litres;
+    byVehicle[l.vehicleId].cost += l.totalCost;
+  });
+  const sorted = Object.entries(byVehicle).sort((a,b) => b[1].litres - a[1].litres).slice(0,4);
+  if (sorted.length === 0) {
+    topEl.innerHTML = '<div class="empty"><div class="empty-icon">🚌</div><p>No data yet.</p></div>';
+  } else {
+    topEl.innerHTML = sorted.map(([vid, data]) => {
+      const v = DB.vehicles.find(x => x.id === vid);
+      return `<div class="list-item">
+        <div class="item-icon type-${(v?.type||'bus').toLowerCase()}">${typeIcon(v?.type)}</div>
+        <div class="item-main">
+          <div class="item-name">${v?.name||'Unknown'}</div>
+          <div class="item-sub">${v?.reg||''}</div>
+        </div>
+        <div class="item-right">
+          <div class="item-val">${data.litres.toFixed(0)}L</div>
+          <div class="item-sub2">${cur}${data.cost.toFixed(0)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ===================== RENDER: VEHICLES =====================
+let vehicleTypeFilter = 'All';
+let vehicleSearch = '';
+
+function filterVehicles(q) { vehicleSearch = q; renderVehicleList(); }
+function filterVehicleType(t, btn) {
+  vehicleTypeFilter = t;
+  document.querySelectorAll('#screen-vehicles .tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderVehicleList();
+}
+
+function renderVehicleList() {
+  let list = DB.vehicles;
+  if (vehicleTypeFilter !== 'All') list = list.filter(v => v.type === vehicleTypeFilter);
+  if (vehicleSearch) list = list.filter(v =>
+    v.name.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+    v.reg.toLowerCase().includes(vehicleSearch.toLowerCase())
+  );
+  document.getElementById('vehicle-count-sub').textContent = DB.vehicles.length + ' total vehicles';
+  const el = document.getElementById('vehicles-list');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🚌</div><p>No vehicles found.</p></div>'; return;
+  }
+  const cur = DB.settings.currency;
+  el.innerHTML = list.map(v => {
+    const logs = DB.fuelLogs.filter(l => l.vehicleId === v.id);
+    const totalCost = logs.reduce((s,l) => s + l.totalCost, 0);
+    const badge = v.status === 'Active' ? 'badge-green' : v.status === 'Maintenance' ? 'badge-yellow' : 'badge-red';
+    return `<div class="list-item">
+      <div class="item-icon type-${v.type.toLowerCase()}">${typeIcon(v.type)}</div>
+      <div class="item-main">
+        <div class="item-name">${v.name} <span class="badge ${badge}">${v.status}</span></div>
+        <div class="item-sub">${v.reg} · ${v.fuelType} · ${logs.length} fill-ups</div>
+      </div>
+      <div class="item-right">
+        <div class="item-val">${cur}${totalCost.toFixed(0)}</div>
+        <div class="item-sub2" style="cursor:pointer;color:var(--red);" onclick="deleteVehicle('${v.id}')">Remove</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== RENDER: FUEL LOGS =====================
+let fuelSearch = '';
+function filterLogs(q) { fuelSearch = q; renderFuelList(); }
+
+function renderFuelList() {
+  let list = [...DB.fuelLogs];
+  if (fuelSearch) {
+    const q = fuelSearch.toLowerCase();
+    list = list.filter(l => {
+      const v = DB.vehicles.find(x => x.id === l.vehicleId);
+      const d = DB.drivers.find(x => x.id === l.driverId);
+      return v?.name.toLowerCase().includes(q) || v?.reg.toLowerCase().includes(q) || d?.name.toLowerCase().includes(q);
+    });
+  }
+  document.getElementById('fuel-count-sub').textContent = DB.fuelLogs.length + ' total entries';
+  const cur = DB.settings.currency;
+  const el = document.getElementById('fuel-logs-list');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⛽</div><p>No fuel logs found.</p></div>'; return;
+  }
+  el.innerHTML = list.map(l => {
+    const v = DB.vehicles.find(x => x.id === l.vehicleId);
+    const d = DB.drivers.find(x => x.id === l.driverId);
+    return `<div class="list-item">
+      <div class="item-icon" style="background:rgba(240,136,62,.12);font-size:16px;">⛽</div>
+      <div class="item-main">
+        <div class="item-name">${v?.name||'Unknown'}</div>
+        <div class="item-sub">${d?.name||'No driver'} · ${formatDate(l.date)}${l.odometer ? ' · '+l.odometer+'km' : ''}</div>
+      </div>
+      <div class="item-right">
+        <div class="item-val">${cur}${l.totalCost.toFixed(0)}</div>
+        <div class="item-sub2">${l.litres}L · ${cur}${l.pricePerLitre}/L</div>
+        <div style="font-size:11px;color:var(--red);cursor:pointer;margin-top:2px;" onclick="deleteFuelLog('${l.id}')">Delete</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== RENDER: DRIVERS =====================
+let driverSearch = '';
+function filterDrivers(q) { driverSearch = q; renderDriverList(); }
+
+function renderDriverList() {
+  let list = DB.drivers;
+  if (driverSearch) list = list.filter(d =>
+    d.name.toLowerCase().includes(driverSearch.toLowerCase()) ||
+    d.phone.includes(driverSearch)
+  );
+  document.getElementById('driver-count-sub').textContent = DB.drivers.length + ' total drivers';
+  const el = document.getElementById('drivers-list');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">👤</div><p>No drivers found.</p></div>'; return;
+  }
+  el.innerHTML = list.map(d => {
+    const logs = DB.fuelLogs.filter(l => l.driverId === d.id);
+    const badge = d.status === 'Active' ? 'badge-green' : d.status === 'On Leave' ? 'badge-yellow' : 'badge-red';
+    return `<div class="list-item">
+      <div class="item-icon" style="background:rgba(88,166,255,.12);font-size:18px;">👤</div>
+      <div class="item-main">
+        <div class="item-name">${d.name} <span class="badge ${badge}">${d.status}</span></div>
+        <div class="item-sub">${d.phone||'No phone'} · ${d.licence||'No licence'} · ${logs.length} fill-ups</div>
+      </div>
+      <div class="item-right">
+        <div class="item-sub2" style="cursor:pointer;color:var(--red);" onclick="deleteDriver('${d.id}')">Remove</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== REPORTS =====================
+let charts = {};
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function switchReportTab(tab, btn) {
+  document.querySelectorAll('#screen-reports .tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  ['monthly','vehicles','drivers'].forEach(t => {
+    document.getElementById('report-'+t).style.display = t===tab ? 'block' : 'none';
+  });
+  renderReportTab(tab);
+}
+
+function renderReports() { renderReportTab('monthly'); }
+
+function renderReportTab(tab) {
+  const cur = DB.settings.currency;
+  if (tab === 'monthly') {
+    const months = getLast6Months();
+    const costs = months.map(m => DB.fuelLogs.filter(l=>l.date.startsWith(m)).reduce((s,l)=>s+l.totalCost,0));
+    const litres = months.map(m => DB.fuelLogs.filter(l=>l.date.startsWith(m)).reduce((s,l)=>s+l.litres,0));
+    destroyChart('monthly-cost'); destroyChart('monthly-litres');
+    charts['monthly-cost'] = makeBarChart('chart-monthly-cost', months.map(m=>shortMonth(m)), costs, cur, '#f0883e');
+    charts['monthly-litres'] = makeBarChart('chart-monthly-litres', months.map(m=>shortMonth(m)), litres, '', '#58a6ff');
+  }
+  if (tab === 'vehicles') {
+    const vData = DB.vehicles.map(v => ({
+      name: v.name,
+      cost: DB.fuelLogs.filter(l=>l.vehicleId===v.id).reduce((s,l)=>s+l.totalCost,0),
+      litres: DB.fuelLogs.filter(l=>l.vehicleId===v.id).reduce((s,l)=>s+l.litres,0)
+    })).sort((a,b)=>b.cost-a.cost).slice(0,6);
+    destroyChart('vehicle-cost');
+    charts['vehicle-cost'] = makeBarChart('chart-vehicle-cost', vData.map(v=>v.name), vData.map(v=>v.cost), cur, '#3fb950');
+    const el = document.getElementById('vehicle-report-list');
+    el.innerHTML = vData.length ? vData.map(v=>`
+      <div class="card" style="padding:12px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:500;">${v.name}</div>
+          <div><span style="font-family:var(--font-head);font-weight:700;">${cur}${v.cost.toFixed(0)}</span> <span style="color:var(--muted);font-size:12px;">${v.litres.toFixed(0)}L</span></div>
+        </div>
+      </div>`).join('') : '<div class="empty"><p>No data</p></div>';
+  }
+  if (tab === 'drivers') {
+    const dData = DB.drivers.map(d => ({
+      name: d.name,
+      count: DB.fuelLogs.filter(l=>l.driverId===d.id).length,
+      litres: DB.fuelLogs.filter(l=>l.driverId===d.id).reduce((s,l)=>s+l.litres,0)
+    })).sort((a,b)=>b.count-a.count).slice(0,6);
+    destroyChart('driver');
+    charts['driver'] = makeBarChart('chart-driver', dData.map(d=>d.name), dData.map(d=>d.count), '', '#d29922');
+    const el = document.getElementById('driver-report-list');
+    el.innerHTML = dData.length ? dData.map(d=>`
+      <div class="card" style="padding:12px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:500;">${d.name}</div>
+          <div><span style="font-family:var(--font-head);font-weight:700;">${d.count}</span> <span style="color:var(--muted);font-size:12px;">fill-ups · ${d.litres.toFixed(0)}L</span></div>
+        </div>
+      </div>`).join('') : '<div class="empty"><p>No data</p></div>';
+  }
+}
+
+function makeBarChart(canvasId, labels, data, prefix, color) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: color + '66', borderColor: color, borderWidth: 1.5, borderRadius: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => prefix + ctx.parsed.y.toFixed(1) } }
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 11 } }, grid: { color: '#30363d' } },
+        y: { ticks: { color: '#8b949e', font: { size: 11 }, callback: v => prefix + v }, grid: { color: '#30363d' } }
+      }
+    }
+  });
+}
+
+// ===================== HELPERS =====================
+function typeIcon(type) {
+  if (type === 'Bus') return '🚌';
+  if (type === 'Van') return '🚐';
+  if (type === 'Car') return '🚗';
+  if (type === 'Truck') return '🚚';
+  return '🚌';
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'2-digit'});
+}
+
+function getLast6Months() {
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    months.push(d.toISOString().slice(0,7));
+  }
+  return months;
+}
+
+function shortMonth(m) {
+  return new Date(m+'-01').toLocaleDateString('en-IN',{month:'short',year:'2-digit'});
+}
+
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type + ' show';
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ===================== EXPORT =====================
+function exportCSV() {
+  const cur = DB.settings.currency;
+  let csv = 'Date,Vehicle,Reg No,Driver,Litres,Price Per Litre,Total Cost,Odometer,Notes\n';
+  DB.fuelLogs.forEach(l => {
+    const v = DB.vehicles.find(x => x.id === l.vehicleId);
+    const d = DB.drivers.find(x => x.id === l.driverId);
+    csv += [l.date, v?.name||'', v?.reg||'', d?.name||'', l.litres, l.pricePerLitre, l.totalCost, l.odometer, l.notes||''].join(',') + '\n';
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fleet_fuel_report.csv';
+  a.click();
+  toast('CSV exported!', 'success');
+}
+
+function clearAllData() {
+  if (!confirm('This will delete ALL vehicles, fuel logs, and drivers. Are you sure?')) return;
+  DB.vehicles = []; DB.fuelLogs = []; DB.drivers = [];
+  saveDB();
+  closeModal('modal-settings');
+  renderDashboard(); renderVehicleList(); renderFuelList(); renderDriverList();
+  toast('All data cleared');
+}
+
+// ===================== GOOGLE SHEETS SYNC =====================
+async function syncToSheets(sheetName, row) {
+  if (!DB.settings.apiUrl) return;
+  try {
+    await fetch(DB.settings.apiUrl, {
+      method: 'POST',
+      body: JSON.stringify({ sheet: sheetName, row }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  } catch(e) {
+    console.warn('Sheets sync failed:', e);
+  }
+}
+
+// ===================== BOOT =====================
+loadDB();
+if (localStorage.getItem('fleet_setup_done')) {
+  showMainApp();
+}
+</script>
+</body>
+</html>
