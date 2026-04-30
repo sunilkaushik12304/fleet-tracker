@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Fleet Fuel Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<script src="https://script.google.com/macros/s/AKfycbz9UuhUnNaMgaqGyiU1_KTyxhQbqxNAkUpsBSBkHqM7ILZVaFIr2K-mP2Yzyk8N_Ams4A/exec"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
@@ -528,7 +528,7 @@ function loadDB() {
     try { DB = JSON.parse(raw); } catch(e) {}
   }
   // Ensure settings exist
-  if (!DB.settings) DB.settings = { school: 'My School', currency: '₹', apiUrl: '' };
+  if (!DB.settings) DB.settings = { school: 'Homerton Grammar School', currency: '₹', apiUrl: '' };
 }
 
 function uid() {
@@ -557,7 +557,7 @@ function initApp() {
   document.getElementById('school-name-header').textContent = s.school;
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
   document.getElementById('fl-cost-label').textContent = `Price/Litre (${s.currency}) *`;
-  if (!s.apiUrl) document.getElementById('local-alert').style.display = 'block';
+  // API always set, no alert needed
   renderDashboard();
   renderVehicleList();
   renderFuelList();
@@ -707,9 +707,9 @@ function saveDriver() {
 }
 
 function saveSettings() {
-  DB.settings.school = document.getElementById('s-school').value.trim() || 'My School';
+  DB.settings.school = document.getElementById('s-school').value.trim() || 'Homerton Grammar School';
   DB.settings.currency = document.getElementById('s-currency').value.trim() || '₹';
-  DB.settings.apiUrl = document.getElementById('s-api').value.trim();
+  DB.settings.apiUrl = HARDCODED_API; // always keep hardcoded URL
   saveDB();
   document.getElementById('school-name-header').textContent = DB.settings.school;
   document.getElementById('local-alert').style.display = DB.settings.apiUrl ? 'none' : 'block';
@@ -1077,10 +1077,14 @@ async function syncToSheets(sheetName, row) {
 }
 
 // ===================== BOOT =====================
+const HARDCODED_API = 'https://script.google.com/macros/s/AKfycbz9UuhUnNaMgaqGyiU1_KTyxhQbqxNAkUpsBSBkHqM7ILZVaFIr2K-mP2Yzyk8N_Ams4A/exec';
 loadDB();
-if (localStorage.getItem('fleet_setup_done')) {
-  showMainApp();
-}
+DB.settings.school = DB.settings.school || 'Homerton Grammar School';
+DB.settings.apiUrl = HARDCODED_API;
+saveDB();
+// Skip setup, go straight to app
+localStorage.setItem('fleet_setup_done', '1');
+showMainApp();
 </script>
 </body>
 </html>
